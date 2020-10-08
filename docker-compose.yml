@@ -1,0 +1,83 @@
+version: "2"
+services:
+  nginx:
+    ports:
+      - '81:81'
+    container_name: nginx_server_1
+    depends_on:
+      - attendance_container
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    image: nginx
+    networks:
+      mynet:
+        ipv4_address: 172.25.100.3
+
+  attendance_container:
+    build: .
+    links:
+      - db
+    ports:
+      - "5005:5005"
+    environment:
+      - FACIAL_ATTENDANCE_DATABASE_HOST=db
+      - FACIAL_ATTENDANCE_DATABASE_PORT=3306
+      - FACIAL_ATTENDANCE_DATABASE_USER=root
+      - FACIAL_ATTENDANCE_DATABASE_PASSWORD=root
+      - FACIAL_ATTENDANCE_DATABASE_DB=facial_attendance
+      - ATTENDANCE_HOST=0.0.0.0
+      - ATTENDANCE_PORT=5005
+    volumes:
+      - ./final_processing_data:/facial_attendance_server/final_processing_data
+      - ./src:/facial_attendance_server/src
+      - ./img:/facial_attendance_server/src/static/filepath
+    command: bash -c "cd src && python app.py"
+    networks:
+      mynet:
+        ipv4_address: 172.25.100.2
+        aliases:
+          - attendance_container-app
+
+  db:
+    image: mysql:5.7
+    command: --max_allowed_packet=32505856
+    ports:
+      - "32000:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      LANG: C.UTF-8
+    volumes:
+      - ./misc:/docker-entrypoint-initdb.d/:ro
+      - ./mysql/custom.conf:/etc/mysql/conf.d/custom.cnf
+    networks:
+      mynet:
+        ipv4_address: 172.25.100.4
+
+networks:
+  mynet:
+      driver: bridge
+      ipam:
+        config:
+          - subnet: 172.25.100.0/24
+# version: "3"
+# services:
+#   mysql:
+#     image: mysql:5.7
+#     ports:
+#       - "3306:3306"
+#     environment:
+#       MYSQL_USER: root
+#       MYSQL_PASSWORD: .aL43WHf
+#       MYSQL_ROOT_PASSWORD: .aL43WHf
+#       TZ: Asia/Tokyo
+#     volumes:
+#       - kb_mysql-data:/var/lib/mysql
+#       - ./mysql/custom.conf:/etc/mysql/conf.d/custom.cnf
+#     networks:
+#       - knowledgeBank
+# volumes:
+#   kb_mysql-data:
+#     driver: local
+# networks:
+#   knowledgeBank:
+#     external: true
